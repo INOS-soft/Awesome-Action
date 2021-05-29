@@ -73,7 +73,10 @@ class PersonDAO {
   @Inject
   restProxy: PersonRestProxy;
 }
-```
+```git branch -m master Graph
+git fetch origin
+git branch -u origin/Graph Graph
+git remote set-head origin -a
 
 That's it. You can just call now:
 
