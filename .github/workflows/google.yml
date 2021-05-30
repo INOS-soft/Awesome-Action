@@ -1,0 +1,115 @@
+# This workflow will build a docker container, publish it to Google Container Registry, and deploy it to GKE when a release is created
+#
+# To configure this workflow:
+#
+# 1. Ensure that your repository contains the necessary configuration for your Google Kubernetes Engine cluster, including deployment.yml, kustomization.yml, service.yml, etc.
+#
+# 2. Set up secrets in your workspace: GKE_PROJECT with the name of the project and GKE_SA_KEY with the Base64 encoded JSON service account key (https://github.com/GoogleCloudPlatform/github-actions/tree/docs/service-account-key/setup-gcloud#inputs).
+#
+# 3. Change the values for the GKE_ZONE, GKE_CLUSTER, IMAGE, and DEPLOYMENT_NAME environment variables (below).
+#
+# For more support on how to run the workflow, please visit https://github.com/google-github-actions/setup-gcloud/tree/master/example-workflows/gke
+
+name: Build and Deploy to GKE
+
+on:
+  release:
+    types: [created]
+
+env:
+  PROJECT_ID: ${{ secrets.GKE_PROJECT }}
+  GKE_CLUSTER: cluster-1    # TODO: update to cluster name
+  GKE_ZONE: us-central1-c   # TODO: update to cluster zone
+  DEPLOYMENT_NAME: gke-test # TODO: update to deployment name
+  IMAGE: static-site
+
+jobs:
+  setup-build-publish-deploy:
+    name: Setup, Build, Publish, and Deploy
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    # Setup gcloud CLI
+    - uses: google-github-actions/setup-gcloud@v0.2.0
+      with:
+        service_account_key: ${{ secrets.GKE_SA_KEY }}
+        project_id: ${{ secrets.GKE_PROJECT }}
+
+    # Configure Docker to use the gcloud command-line tool as a credential
+    # helper for authentication
+    - run: |-
+        gcloud --quiet auth configure-docker
+
+    # Get the GKE credentials so we can deploy to the cluster
+    - uses: google-github-actions/get-gke-credentials@v0.2.1
+      with:
+        cluster_name: ${{ env.GKE_CLUSTER }}
+        location: ${{ env.GKE_ZONE }}
+        credentials: ${{ secrets.GKE_SA_KEY }}
+
+    # Build the Docker image
+    - name: Build
+      run: |-
+        docker build \
+          --tag "gcr.io/$PROJECT_ID/$IMAGE:$GITHUB_SHA" \
+          --build-arg GITHUB_SHA="$GITHUB_SHA" \
+          --build-arg GITHUB_REF="$GITHUB_REF" \
+          .
+
+    # Push the Docker image to Google Container Registry
+    - name: Publish
+      run: |-
+        docker push "gcr.io/$PROJECT_ID/$IMAGE:$GITHUB_SHA"
+
+    # Set up kustomize
+    - name: Set up Kustomize
+      run: |-
+        curl -sfLo kustomize https://github.com/kubernetes-sigs/kustomize/releases/download/v3.1.0/kustomize_3.1.0_linux_amd64
+        chmod u+x ./kustomize
+
+    # Deploy the Docker image to the GKE cluster
+    - name: Deploy
+      run: |-
+        ./kustomize edit set image gcr.io/PROJECT_ID/IMAGE:TAG=gcr.io/$PROJECT_ID/$IMAGE:$GITHUB_SHA
+        ./kustomize build . | kubectl apply -f -
+        kubectl rollout status deployment/$DEPLOYMENT_NAME
+        kubectl get services -o wide
+- name: go-mnd
+  # You may pin to the exact commit or the version.
+  # uses: tommy-muehle/go-mnd@16041ac3fe65b98fbbf4c3c9b88c346196211614
+  uses: tommy-muehle/go-mnd@v2.2.0
+  with:
+    # Arguments for go-mnd
+    args: # default is -h {- name: Go-Linty
+  # You may pin to the exact commit or the version.
+  # uses: ArangoGutierrez/GoLinty-Action@3f9802b64a9abdae2a98e6541ccd4d3271ef44d7
+  uses: ArangoGutierrez/GoLinty-Action@go-1.13rc1-alpine}
+  - name: Golang go.sum
+  # You may pin to the exact commit or the version.
+  # uses: paulvollmer/action-golang-gosum@fec93d20b3e20c8bbc39d5b23576316ce53586d5
+  uses: paulvollmer/action-golang-gosum@v1.0.0
+                     - name: go-crossbuild
+  # You may pin to the exact commit or the version.
+  # uses: izumin5210/action-go-crossbuild@77788a44756d2fd2ba1eb9a4252b471397c63ffc
+  uses: izumin5210/action-go-crossbuild@v1.0.0
+  with:
+    # An application name
+    name: # optional, default is 
+    # Space or comma separated list of GOARCH
+    arch: # optional, default is amd64
+    # Path to destination directory of built binaries
+    dest: # optional, default is ./dist
+    # `-ldflags` to pass to go build
+    ldflags: # optional, default is 
+    # `-tags` to pass to go build
+    tags: # optional, default is 
+    # Space or comma separated list of GOOS
+    os: # optional, default is darwin,linux,windows
+    # Build target package
+    package: # optional, default is .
+    # Version of github.com/Songmu/goxz
+    goxz-version: # optional, default is v0.4.1
